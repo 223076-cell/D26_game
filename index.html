@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Taiko Beat Master</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;900&display=swap');
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #ff9800; /* Festival Orange */
+            font-family: 'M PLUS Rounded 1c', sans-serif;
+            touch-action: none;
+            user-select: none;
+        }
+
+        /* Japanese Festival Background Pattern */
+        .bg-pattern {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-image: 
+                radial-gradient(#ffffff33 15%, transparent 16%),
+                radial-gradient(#ffffff33 15%, transparent 16%);
+            background-size: 60px 60px;
+            background-position: 0 0, 30px 30px;
+            z-index: 0;
+        }
+
+        #gameCanvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 1;
+            display: block;
+        }
+
+        #uiLayer {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 2;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        /* Gauge Styling */
+        .gauge-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 50%;
+            max-width: 400px;
+            height: 30px;
+            background: #333;
+            border: 3px solid #fff;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .gauge-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #ffeb3b, #ff5722);
+            transition: width 0.2s ease-out;
+        }
+        .gauge-quota {
+            position: absolute;
+            top: -5px;
+            bottom: -5px;
+            left: 80%;
+            width: 4px;
+            background: #fff;
+            box-shadow: 0 0 5px rgba(255,255,255,0.8);
+        }
+        .gauge-text {
+            position: absolute;
+            top: 25px;
+            right: -10px;
+            color: white;
+            font-size: 20px;
+            font-weight: 900;
+            text-shadow: 2px 2px 0 #000;
+            transform: rotate(10deg);
+        }
+
+        /* Combo Counter */
+        .combo-container {
+            position: absolute;
+            top: 100px;
+            left: 30px;
+            text-align: center;
+        }
+        .combo-text {
+            color: #fff;
+            font-size: 24px;
+            font-weight: 900;
+            text-shadow: 2px 2px 0 #000;
+        }
+        .combo-number {
+            color: #ffeb3b;
+            font-size: 60px;
+            font-weight: 900;
+            line-height: 1;
+            text-shadow: 3px 3px 0 #ff0000, -2px -2px 0 #000;
+            transition: transform 0.1s;
+        }
+        .shake {
+            animation: shake 0.2s infinite;
+        }
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg) scale(1.1); }
+            25% { transform: translate(-1px, -2px) rotate(-1deg) scale(1.1); }
+            50% { transform: translate(-3px, 0px) rotate(1deg) scale(1.1); }
+            75% { transform: translate(3px, 2px) rotate(0deg) scale(1.1); }
+            100% { transform: translate(1px, -1px) rotate(-1deg) scale(1.1); }
+        }
+
+        /* Touch Controls */
+        .touch-controls {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            padding: 0 10px;
+            pointer-events: auto;
+        }
+        .drum-btn {
+            flex: 1;
+            max-width: 120px;
+            height: 100px;
+            border-radius: 20px;
+            border: 4px solid rgba(255,255,255,0.5);
+            font-size: 24px;
+            font-weight: 900;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 0 rgba(0,0,0,0.2);
+            transition: transform 0.05s, box-shadow 0.05s;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+        .drum-btn:active {
+            transform: translateY(10px);
+            box-shadow: 0 0px 0 rgba(0,0,0,0.2);
+        }
+        .btn-ka { background: linear-gradient(180deg, #4facfe 0%, #00f2fe 100%); }
+        .btn-don { background: linear-gradient(180deg, #ff0844 0%, #ffb199 100%); }
+
+        /* Start Screen */
+        #startScreen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            transition: opacity 0.3s;
+        }
+        .play-btn {
+            background: #ff5252;
+            border: 4px solid #fff;
+            padding: 15px 50px;
+            font-size: 32px;
+            font-family: inherit;
+            font-weight: 900;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 8px 0 #b33939;
+            margin-bottom: 30px;
+        }
+        .play-btn:active {
+            transform: translateY(8px);
+            box-shadow: 0 0px 0 #b33939;
+        }
+        .key-guide {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="bg-pattern"></div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="uiLayer">
+        <div class="gauge-container">
+            <div class="gauge-fill" id="soulGauge"></div>
+            <div class="gauge-quota"></div>
+            <div class="gauge-text">魂</div>
+        </div>
+
+        <div class="combo-container" id="comboContainer" style="opacity: 0;">
+            <div class="combo-number" id="comboVal">0</div>
+            <div class="combo-text">コンボ</div>
+        </div>
+
+        <div class="touch-controls">
+            <button class="drum-btn btn-ka" id="btnKaLeft">カ<br>(D)</button>
+            <button class="drum-btn btn-don" id="btnDonLeft">ドン<br>(F)</button>
+            <button class="drum-btn btn-don" id="btnDonRight">ドン<br>(J)</button>
+            <button class="drum-btn btn-ka" id="btnKaRight">カ<br>(K)</button>
+        </div>
+    </div>
+
+    <div id="startScreen">
+        <h1 class="text-6xl font-black mb-10 text-center" style="text-shadow: 4px 4px 0 #ff5252, -2px -2px 0 #000;">
+            太鼓ビート<br>マスター
+        </h1>
+        <button class="play-btn" id="startBtn">遊ぶ (PLAY)</button>
+        <div class="key-guide">
+            <p class="text-2xl mb-4 font-bold text-yellow-300">【操作方法】</p>
+            <p class="text-lg mb-2"><span class="text-red-400 font-bold">ドン (赤)</span> : F または J キー / 中央ボタン</p>
+            <p class="text-lg"><span class="text-blue-400 font-bold">カ (青)</span> : D または K キー / 外側ボタン</p>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const startScreen = document.getElementById('startScreen');
+        const comboContainer = document.getElementById('comboContainer');
+        const comboValDisplay = document.getElementById('comboVal');
+        const soulGaugeDisplay = document.getElementById('soulGauge');
+
+        let width, height;
+        const TARGET_X = 150; // Hit target position from the left
+        const TRACK_Y_RATIO = 0.4; // Y position of the track
+        let trackY;
+
+        // Game State
+        let isPlaying = false;
+        let combo = 0;
+        let maxCombo = 0;
+        let soul = 0; // 0 to 100
+        const SOUL_MAX = 100;
+        let notes = [];
+        let particles = [];
+        let feedbackTexts = [];
+
+        // Timing & Audio
+        let audioCtx;
+        const BPM = 130;
+        const BEAT_INTERVAL = 60 / BPM;
+        let nextNoteTime = 0;
+        let startTime = 0;
+        const SPEED = 700; // pixels per second
+        
+        // Note patterns (0: rest, 1: don, 2: ka)
+        const patterns = [
+            [1, 0, 1, 0, 2, 0, 2, 0],
+            [1, 1, 2, 0, 1, 1, 2, 0],
+            [1, 2, 1, 2, 1, 0, 0, 0],
+            [2, 2, 1, 0, 2, 2, 1, 0],
+            [1, 1, 1, 1, 2, 0, 0, 0],
+            [1, 0, 2, 0, 1, 0, 2, 0],
+            [2, 1, 1, 0, 2, 1, 1, 0]
+        ];
+        let currentPatternIndex = 0;
+        let beatInPattern = 0;
+
+        function resize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            // Handle high DPI displays for crisp rendering
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = width * dpr;
+            canvas.height = height * dpr;
+            ctx.scale(dpr, dpr);
+            trackY = height * TRACK_Y_RATIO;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        function initAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            startTime = audioCtx.currentTime + 1.5;
+            nextNoteTime = startTime;
+        }
+
+        function playDon(time) {
+            if (!audioCtx) return;
+            const t = time || audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            // Deep, punchy drum sound
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(200, t);
+            osc.frequency.exponentialRampToValueAtTime(40, t + 0.1);
+            
+            gain.gain.setValueAtTime(1.0, t);
+            gain.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
+            
+            osc.start(t);
+            osc.stop(t + 0.15);
+        }
+
+        function playKa(time) {
+            if (!audioCtx) return;
+            const t = time || audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            // Sharp wooden click/rim sound
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(800, t);
+            osc.frequency.exponentialRampToValueAtTime(300, t + 0.05);
+            
+            gain.gain.setValueAtTime(0.8, t);
+            gain.gain.exponentialRampToValueAtTime(0.01, t + 0.08);
+            
+            osc.start(t);
+            osc.stop(t + 0.08);
+        }
+
+        function playCheer() {
+            if (!audioCtx) return;
+            const t = audioCtx.currentTime;
+            
+            // Synthesize a festive "chord" or noise for combo milestones
+            const frequencies = [440, 554, 659]; // A major chord approximation
+            frequencies.forEach(freq => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(freq, t);
+                
+                gain.gain.setValueAtTime(0.1, t);
+                gain.gain.linearRampToValueAtTime(0.2, t + 0.1);
+                gain.gain.exponentialRampToValueAtTime(0.01, t + 0.5);
+                
+                osc.start(t);
+                osc.stop(t + 0.5);
+            });
+        }
+
+        function scheduleNotes() {
+            if (!isPlaying || !audioCtx) return;
+            
+            // Schedule ahead by 2 seconds
+            while (nextNoteTime < audioCtx.currentTime + 2.0) {
+                const pattern = patterns[currentPatternIndex];
+                const noteType = pattern[beatInPattern];
+                
+                if (noteType !== 0) {
+                    notes.push({
+                        type: noteType === 1 ? 'don' : 'ka',
+                        time: nextNoteTime,
+                        active: true,
+                        hit: false
+                    });
+                }
+                
+                // Advance beat
+                nextNoteTime += BEAT_INTERVAL / 2; // 8th notes
+                beatInPattern++;
+                
+                if (beatInPattern >= pattern.length) {
+                    beatInPattern = 0;
+                    // Pick a random next pattern, slightly biased to stay on same for a bit
+                    if (Math.random() > 0.3) {
+                        currentPatternIndex = Math.floor(Math.random() * patterns.length);
+                    }
+                }
+            }
+        }
+
+        function handleHit(inputType) {
+            if (!isPlaying || !audioCtx) return;
+            
+            // Play immediate feedback sound based on input
+            if (inputType === 'don') playDon();
+            else playKa();
+
+            // Hit animation on target
+            createParticles(TARGET_X, trackY, inputType === 'don' ? '#ff5252' : '#00a8ff', 10);
+
+            const currentTime = audioCtx.currentTime;
+            let closestNote = null;
+            let minDiff = Infinity;
+
+            // Find closest active note
+            for (let i = 0; i < notes.length; i++) {
+                const note = notes[i];
+                if (note.active) {
+                    const diff = Math.abs(currentTime - note.time);
+                    if (diff < minDiff && diff < 0.2) { // 200ms hit window
+                        minDiff = diff;
+                        closestNote = note;
+                    }
+                }
+            }
+
+            if (closestNote) {
+                if (closestNote.type === inputType) {
+                    // Correct note type hit
+                    closestNote.active = false;
+                    
+                    if (minDiff < 0.05) { // Perfect
+                        addCombo();
+                        addSoul(2);
+                        showFeedback('良', '#ffeb3b');
+                        createParticles(TARGET_X, trackY, '#ffeb3b', 20);
+                    } else if (minDiff < 0.12) { // Good
+                        addCombo();
+                        addSoul(1);
+                        showFeedback('可', '#fff');
+                    } else { // Bad timing
+                        resetCombo();
+                        addSoul(-2);
+                        showFeedback('不可', '#9e9e9e');
+                    }
+                } else {
+                    // Wrong note type (e.g., hit Ka when it's Don)
+                    closestNote.active = false;
+                    resetCombo();
+                    addSoul(-2);
+                    showFeedback('不可', '#9e9e9e');
+                }
+            }
+        }
+
+        function addCombo() {
+            combo++;
+            if (combo > maxCombo) maxCombo = combo;
+            
+            comboContainer.style.opacity = '1';
+            comboValDisplay.innerText = combo;
+            
+            // Pop animation
+            comboValDisplay.style.transform = 'scale(1.5)';
+            setTimeout(() => { comboValDisplay.style.transform = 'scale(1)'; }, 100);
+
+            // Shake effect on high combos
+            if (combo >= 10) {
+                comboValDisplay.classList.add('shake');
+            } else {
+                comboValDisplay.classList.remove('shake');
+            }
+
+            // Cheer on milestones
+            if (combo > 0 && combo % 50 === 0) {
+                playCheer();
+                showFeedback('100コンボ!', '#ffeb3b', true);
+            }
+        }
+
+        function resetCombo() {
+            combo = 0;
+            comboContainer.style.opacity = '0';
+            comboValDisplay.classList.remove('shake');
+        }
+
+        function addSoul(amount) {
+            soul += amount;
+            if (soul < 0) soul = 0;
+            if (soul > SOUL_MAX) soul = SOUL_MAX;
+            soulGaugeDisplay.style.width = `${soul}%`;
+            
+            // Color change based on passing quota (80%)
+            if (soul >= 80) {
+                soulGaugeDisplay.style.background = 'linear-gradient(90deg, #ffeb3b, #e91e63)';
+            } else {
+                soulGaugeDisplay.style.background = 'linear-gradient(90deg, #ffeb3b, #ff5722)';
+            }
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (e.repeat) return;
+            if (e.code === 'KeyF' || e.code === 'KeyJ') {
+                handleHit('don');
+                highlightButton(e.code === 'KeyF' ? 'btnDonLeft' : 'btnDonRight');
+            }
+            if (e.code === 'KeyD' || e.code === 'KeyK') {
+                handleHit('ka');
+                highlightButton(e.code === 'KeyD' ? 'btnKaLeft' : 'btnKaRight');
+            }
+        });
+
+        function highlightButton(id) {
+            const btn = document.getElementById(id);
+            if (btn) {
+                btn.style.transform = 'translateY(10px)';
+                btn.style.boxShadow = '0 0px 0 rgba(0,0,0,0.2)';
+                setTimeout(() => {
+                    btn.style.transform = '';
+                    btn.style.boxShadow = '';
+                }, 100);
+            }
+        }
+
+        // Touch buttons
+        document.getElementById('btnKaLeft').addEventListener('touchstart', (e)=>{ e.preventDefault(); handleHit('ka'); });
+        document.getElementById('btnDonLeft').addEventListener('touchstart', (e)=>{ e.preventDefault(); handleHit('don'); });
+        document.getElementById('btnDonRight').addEventListener('touchstart', (e)=>{ e.preventDefault(); handleHit('don'); });
+        document.getElementById('btnKaRight').addEventListener('touchstart', (e)=>{ e.preventDefault(); handleHit('ka'); });
+        
+        // Mouse fallback for testing
+        document.getElementById('btnKaLeft').addEventListener('mousedown', ()=>handleHit('ka'));
+        document.getElementById('btnDonLeft').addEventListener('mousedown', ()=>handleHit('don'));
+        document.getElementById('btnDonRight').addEventListener('mousedown', ()=>handleHit('don'));
+        document.getElementById('btnKaRight').addEventListener('mousedown', ()=>handleHit('ka'));
+
+        function showFeedback(text, color, isLarge = false) {
+            feedbackTexts.push({
+                text: text,
+                color: color,
+                x: TARGET_X,
+                y: trackY - 60,
+                vy: -2,
+                alpha: 1.0,
+                scale: isLarge ? 2.0 : 1.0,
+                life: 1.0
+            });
+        }
+
+        function createParticles(x, y, color, count) {
+            for (let i = 0; i < count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 8 + 2;
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    color: color,
+                    life: 1.0,
+                    size: Math.random() * 6 + 3
+                });
+            }
+        }
+
+        let lastRenderTime = 0;
+        function render(timestamp) {
+            if (!isPlaying) {
+                requestAnimationFrame(render);
+                return;
+            }
+
+            const deltaTime = (timestamp - lastRenderTime) / 1000 || 0;
+            lastRenderTime = timestamp;
+            const currentTime = audioCtx ? audioCtx.currentTime : 0;
+
+            scheduleNotes();
+
+            // Clear canvas
+            ctx.clearRect(0, 0, width, height);
+
+            // Draw Track Background (Gray wooden board)
+            ctx.fillStyle = '#424242';
+            ctx.fillRect(0, trackY - 50, width, 100);
+            
+            // Track borders
+            ctx.fillStyle = '#212121';
+            ctx.fillRect(0, trackY - 55, width, 5);
+            ctx.fillRect(0, trackY + 50, width, 5);
+
+            // Draw Hit Target Circle
+            ctx.save();
+            ctx.translate(TARGET_X, trackY);
+            
+            // Outer ring
+            ctx.beginPath();
+            ctx.arc(0, 0, 42, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.fill();
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+            ctx.stroke();
+            
+            // Inner ring
+            ctx.beginPath();
+            ctx.arc(0, 0, 25, 0, Math.PI * 2);
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.restore();
+
+            // Draw and Update Notes
+            for (let i = notes.length - 1; i >= 0; i--) {
+                const note = notes[i];
+                // X position moves from right to left based on time
+                const timeDiff = note.time - currentTime;
+                const x = TARGET_X + timeDiff * SPEED;
+
+                if (note.active) {
+                    if (timeDiff < -0.15) {
+                        // Missed note passed the target
+                        note.active = false;
+                        resetCombo();
+                        addSoul(-2);
+                        showFeedback('不可', '#9e9e9e');
+                    } else {
+                        // Draw Note
+                        ctx.save();
+                        ctx.translate(x, trackY);
+                        
+                        const isDon = note.type === 'don';
+                        const color = isDon ? '#ff5252' : '#00a8ff'; // Red for Don, Blue for Ka
+                        const edgeColor = isDon ? '#fff' : '#fff'; // White border
+
+                        // Outer Circle
+                        ctx.beginPath();
+                        ctx.arc(0, 0, 35, 0, Math.PI * 2);
+                        ctx.fillStyle = color;
+                        ctx.fill();
+                        ctx.lineWidth = 3;
+                        ctx.strokeStyle = '#000'; // Black outline
+                        ctx.stroke();
+
+                        // Inner white rim
+                        ctx.beginPath();
+                        ctx.arc(0, 0, 32, 0, Math.PI * 2);
+                        ctx.lineWidth = 2;
+                        ctx.strokeStyle = edgeColor;
+                        ctx.stroke();
+
+                        // Cute Face
+                        ctx.fillStyle = '#000';
+                        ctx.beginPath();
+                        ctx.arc(-10, -5, 4, 0, Math.PI * 2); // left eye
+                        ctx.arc(10, -5, 4, 0, Math.PI * 2);  // right eye
+                        ctx.fill();
+                        
+                        // Mouth
+                        ctx.beginPath();
+                        ctx.arc(0, 5, 8, 0, Math.PI, false);
+                        ctx.lineWidth = 3;
+                        ctx.stroke();
+                        
+                        ctx.restore();
+                    }
+                }
+                
+                // Cleanup notes far off screen
+                if (timeDiff < -1) {
+                    notes.splice(i, 1);
+                }
+            }
+
+            // Draw Particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 10 * deltaTime; // Gravity
+                p.life -= deltaTime * 2;
+                
+                if (p.life <= 0) {
+                    particles.splice(i, 1);
+                } else {
+                    ctx.globalAlpha = p.life;
+                    ctx.fillStyle = p.color;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.globalAlpha = 1.0;
+                }
+            }
+
+            // Draw Feedback Texts (良, 可, 不可)
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            for (let i = feedbackTexts.length - 1; i >= 0; i--) {
+                const ft = feedbackTexts[i];
+                ft.y += ft.vy;
+                ft.life -= deltaTime * 1.5;
+                
+                if (ft.life <= 0) {
+                    feedbackTexts.splice(i, 1);
+                } else {
+                    ctx.save();
+                    ctx.globalAlpha = Math.max(0, ft.life);
+                    ctx.translate(ft.x, ft.y);
+                    ctx.scale(ft.scale, ft.scale);
+                    
+                    ctx.font = "900 40px 'M PLUS Rounded 1c', sans-serif";
+                    
+                    // Black thick outline
+                    ctx.strokeStyle = "#000";
+                    ctx.lineWidth = 8;
+                    ctx.strokeText(ft.text, 0, 0);
+                    
+                    // Text fill
+                    ctx.fillStyle = ft.color;
+                    ctx.fillText(ft.text, 0, 0);
+                    
+                    ctx.restore();
+                }
+            }
+
+            requestAnimationFrame(render);
+        }
+
+        document.getElementById('startBtn').addEventListener('click', () => {
+            initAudio();
+            audioCtx.resume().then(() => {
+                isPlaying = true;
+                combo = 0;
+                soul = 0;
+                notes = [];
+                particles = [];
+                feedbackTexts = [];
+                
+                resetCombo();
+                soulGaugeDisplay.style.width = '0%';
+                
+                startScreen.style.opacity = '0';
+                setTimeout(() => {
+                    startScreen.style.display = 'none';
+                }, 300);
+                
+                requestAnimationFrame(render);
+            });
+        });
+    </script>
+</body>
+</html>
